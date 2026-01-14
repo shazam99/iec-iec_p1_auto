@@ -8,60 +8,52 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
-/**
- * JavaFX simulator for 480x480 round TFT.
- * Phase 4: animated navigation simulation.
- */
 public class RoundTftApp extends Application {
 
-    // -------- Static handover from Main --------
-    private static NavigationSnapshot initialSnapshot;
+    private static NavigationState navState;
+    private static NavigationSnapshot snapshot;
 
-    public static void setInitialSnapshot(NavigationSnapshot snapshot) {
-        initialSnapshot = snapshot;
+    public static void setNavigation(NavigationState state, NavigationSnapshot snap) {
+        navState = state;
+        snapshot = snap;
     }
-
-    // -------- Runtime --------
-    private NavigationState navState;
-    private TftRenderer renderer;
 
     @Override
     public void start(Stage stage) {
-
-        if (initialSnapshot == null) {
-            throw new IllegalStateException("NavigationSnapshot not set before launch()");
-        }
-
         Canvas canvas = new Canvas(480, 480);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
-        renderer = new TftRenderer(gc);
-        navState = new NavigationState(initialSnapshot.path);
+        TftRenderer renderer = new TftRenderer();
+        renderer.setSnapshot(snapshot);
 
-        StackPane root = new StackPane(canvas);
-        Scene scene = new Scene(root, 480, 480);
-
-        stage.setTitle("IEC Round TFT Simulator");
-        stage.setScene(scene);
-        stage.show();
-
-        // -------- Animation loop (navigation tick) --------
-        AnimationTimer timer = new AnimationTimer() {
-
-            private long last = 0;
-
+        new AnimationTimer() {
             @Override
             public void handle(long now) {
-                if (now - last < 33_000_000) return; // ~30 FPS
-                last = now;
+                gc.setFill(Color.BLACK);
+                gc.fillRect(0, 0, 480, 480);
 
-                navState.tick(); // move vehicle forward
-                renderer.render(navState, initialSnapshot);
+                renderer.drawRoute(gc);
+                renderer.drawVehicle(
+                        gc,
+                        navState.getCurrentLat(),
+                        navState.getCurrentLon()
+                );
+
+                renderer.drawHud(
+                        gc,
+                        navState.getRemainingDistanceKm(),
+                        snapshot.etaMinutes
+                );
+
+                navState.tick();
             }
-        };
+        }.start();
 
-        timer.start();
+        stage.setTitle("ESP32 TFT Simulator");
+        stage.setScene(new Scene(new StackPane(canvas)));
+        stage.show();
     }
 }

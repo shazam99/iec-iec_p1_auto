@@ -1,44 +1,31 @@
 package com.iec.model;
 
-import java.util.List;
+import com.graphhopper.util.PointList;
 
-/**
- * Immutable navigation state snapshot.
- */
 public class NavigationSnapshot {
 
-    // Static route data
+    public final PointList pathPoints;
     public final double distanceKm;
     public final double etaMinutes;
-    public final int action;
-    public final double nextTurnDistanceMeters;
-    public final List<double[]> path;
 
-    // Dynamic navigation state
-    public final double lat;
-    public final double lon;
-    public final double remainingDistanceKm;
-    public final double remainingTimeMin;
+    // ✅ NEW: bounding box
+    public final double minLat, maxLat, minLon, maxLon;
 
     public NavigationSnapshot(
+            PointList pathPoints,
             double distanceKm,
             double etaMinutes,
-            int action,
-            double nextTurnDistanceMeters,
-            List<double[]> path,
-            double lat,
-            double lon,
-            double remainingDistanceKm,
-            double remainingTimeMin
+            double minLat,
+            double maxLat,
+            double minLon,
+            double maxLon
     ) {
+        this.pathPoints = pathPoints;
         this.distanceKm = distanceKm;
         this.etaMinutes = etaMinutes;
-        this.action = action;
-        this.nextTurnDistanceMeters = nextTurnDistanceMeters;
-        this.path = path;
-        this.lat = lat;
-        this.lon = lon;
-        this.remainingDistanceKm = remainingDistanceKm;
-        this.remainingTimeMin = remainingTimeMin;
+        this.minLat = minLat;
+        this.maxLat = maxLat;
+        this.minLon = minLon;
+        this.maxLon = maxLon;
     }
 }

@@ -1,102 +1,64 @@
 package com.iec.ui;
 
 import com.iec.model.NavigationSnapshot;
-import com.iec.nav.NavigationState;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 
-/**
- * Renders navigation UI to a 480x480 round TFT-like canvas.
- * Phase 4 renderer – logic will map 1:1 to ESP32 TFT.
- */
 public class TftRenderer {
 
-    private final GraphicsContext g;
+    private static final int SIZE = 480;
+    private static final int PADDING = 20;
 
-    private static final double WIDTH = 480;
-    private static final double HEIGHT = 480;
-    private static final double CENTER = 240;
+    private NavigationSnapshot snapshot;
 
-    public TftRenderer(GraphicsContext graphicsContext) {
-        this.g = graphicsContext;
+    public void setSnapshot(NavigationSnapshot snapshot) {
+        this.snapshot = snapshot;
     }
 
-    public void render(
-            NavigationState navState,
-            NavigationSnapshot snapshot
-    ) {
-        clear();
-        drawRoute(snapshot);
-        drawVehicle(navState);
-        drawHud(navState, snapshot);
+    private double mapX(double lon) {
+        return PADDING +
+                (lon - snapshot.minLon)
+                        / (snapshot.maxLon - snapshot.minLon)
+                        * (SIZE - 2 * PADDING);
     }
 
-    // ---------------- Drawing ----------------
-
-    private void clear() {
-        g.setFill(Color.BLACK);
-        g.fillRect(0, 0, WIDTH, HEIGHT);
+    private double mapY(double lat) {
+        // Screen Y-axis inverted
+        return SIZE - PADDING -
+                (lat - snapshot.minLat)
+                        / (snapshot.maxLat - snapshot.minLat)
+                        * (SIZE - 2 * PADDING);
     }
 
-    private void drawRoute(NavigationSnapshot snapshot) {
-        if (snapshot.path == null || snapshot.path.size() < 2) return;
+    public void drawRoute(GraphicsContext gc) {
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(3);
 
-        g.setStroke(Color.DARKCYAN);
-        g.setLineWidth(3);
+        var pts = snapshot.pathPoints;
 
-        for (int i = 0; i < snapshot.path.size() - 1; i++) {
-            double[] p1 = snapshot.path.get(i);
-            double[] p2 = snapshot.path.get(i + 1);
-
-            double x1 = mapLonToX(p1[1]);
-            double y1 = mapLatToY(p1[0]);
-            double x2 = mapLonToX(p2[1]);
-            double y2 = mapLatToY(p2[0]);
-
-            g.strokeLine(x1, y1, x2, y2);
+        for (int i = 1; i < pts.size(); i++) {
+            gc.strokeLine(
+                    mapX(pts.getLon(i - 1)),
+                    mapY(pts.getLat(i - 1)),
+                    mapX(pts.getLon(i)),
+                    mapY(pts.getLat(i))
+            );
         }
     }
 
-    private void drawVehicle(NavigationState navState) {
-        double[] pos = navState.getCurrentPosition();
-
-        double x = mapLonToX(pos[1]);
-        double y = mapLatToY(pos[0]);
-
-        g.setFill(Color.ORANGE);
-        g.fillOval(x - 6, y - 6, 12, 12);
-    }
-
-    private void drawHud(
-            NavigationState navState,
-            NavigationSnapshot snapshot
-    ) {
-        g.setFill(Color.WHITE);
-
-        double remainingKm =
-                navState.getRemainingDistanceMeters() / 1000.0;
-
-        g.fillText(
-                String.format("Remaining: %.2f km", remainingKm),
-                140,
-                30
-        );
-
-        g.fillText(
-                String.format("ETA: %.1f min", snapshot.etaMinutes),
-                140,
-                50
+    public void drawVehicle(GraphicsContext gc, double lat, double lon) {
+        gc.setFill(Color.ORANGE);
+        gc.fillOval(
+                mapX(lon) - 6,
+                mapY(lat) - 6,
+                12,
+                12
         );
     }
 
-    // ---------------- Coordinate mapping ----------------
-    // Simple linear mapping (simulation only)
-
-    private double mapLatToY(double lat) {
-        return CENTER - ((lat * 1000) % 200);
-    }
-
-    private double mapLonToX(double lon) {
-        return CENTER + ((lon * 1000) % 200);
+    public void drawHud(GraphicsContext gc, double remainingKm, double etaMin) {
+        gc.setFill(Color.WHITE);
+        gc.fillText(String.format("Remaining %.2f km", remainingKm), 150, 30);
+        gc.fillText(String.format("ETA %.1f min", etaMin), 150, 50);
     }
 }
