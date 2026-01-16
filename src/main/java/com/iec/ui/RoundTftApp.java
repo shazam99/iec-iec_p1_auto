@@ -17,7 +17,7 @@ public class RoundTftApp extends Application {
     private static NavigationState navState;
     private static NavigationSnapshot snapshot;
 
-    private static final double SPEED_FACTOR = 0.1;
+    private static final double SPEED_FACTOR = 0.05; // x real speed
 
     public static void setNavigation(NavigationState state, NavigationSnapshot snap) {
         navState = state;
@@ -33,7 +33,7 @@ public class RoundTftApp extends Application {
         TftRenderer renderer = new TftRenderer();
         renderer.setSnapshot(snapshot);
 
-        VehicleMarker vehicle = new VehicleMarker.TriangleVehicleMarker(15, Color.ORANGE);
+        VehicleMarker vehicle = new VehicleMarker.TriangleVehicleMarker(25, Color.ORANGE);
 
         new AnimationTimer() {
             @Override

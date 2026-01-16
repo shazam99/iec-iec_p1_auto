@@ -37,6 +37,8 @@ build/
 ### Mac OS ###
 .DS_Store
 
+src/main/java/com/iec.zip
+
 .idea/
 graph-cache/
 maps/
