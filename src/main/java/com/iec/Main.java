@@ -17,7 +17,8 @@ public class Main {
                 28.373902,77.37149,   // Faridabad
 //                28.61291, 77.22951    // India Gate
 //                28.100542,77.336318 // palwal
-                28.387845,77.353638 // omaxe
+//                28.387845,77.353638 // omaxe
+                28.415355,77.3675 // dentist
         );
 
         System.out.println("✅ Graph loaded");

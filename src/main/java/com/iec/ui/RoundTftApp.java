@@ -2,6 +2,7 @@ package com.iec.ui;
 
 import com.iec.model.NavigationSnapshot;
 import com.iec.nav.NavigationState;
+import com.iec.ui.marker.VehicleMarker;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -16,6 +17,8 @@ public class RoundTftApp extends Application {
     private static NavigationState navState;
     private static NavigationSnapshot snapshot;
 
+    private static final double SPEED_FACTOR = 0.1;
+
     public static void setNavigation(NavigationState state, NavigationSnapshot snap) {
         navState = state;
         snapshot = snap;
@@ -23,23 +26,38 @@ public class RoundTftApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        Canvas canvas = new Canvas(480, 480);
-        GraphicsContext gc = canvas.getGraphicsContext2D();
+
+        Canvas screen = new Canvas(480, 480);
+        GraphicsContext gc = screen.getGraphicsContext2D();
 
         TftRenderer renderer = new TftRenderer();
         renderer.setSnapshot(snapshot);
 
+        VehicleMarker vehicle = new VehicleMarker.TriangleVehicleMarker(15, Color.ORANGE);
+
         new AnimationTimer() {
             @Override
             public void handle(long now) {
+
+                double lat = navState.getCurrentLat();
+                double lon = navState.getCurrentLon();
+
+                // Render world offscreen
+                renderer.renderWorld(lat, lon);
+
+                // Draw viewport
                 gc.setFill(Color.BLACK);
                 gc.fillRect(0, 0, 480, 480);
+                renderer.drawToScreen(gc);
 
-                renderer.drawRoute(gc);
-                renderer.drawVehicle(
+                // Draw vehicle (fixed)
+                double heading = navState.getHeadingRadians();
+
+                vehicle.draw(
                         gc,
-                        navState.getCurrentLat(),
-                        navState.getCurrentLon()
+                        renderer.getVehicleScreenX(),
+                        renderer.getVehicleScreenY(),
+                        heading
                 );
 
                 renderer.drawHud(
@@ -48,12 +66,12 @@ public class RoundTftApp extends Application {
                         snapshot.etaMinutes
                 );
 
-                navState.tick();
+                navState.tick(SPEED_FACTOR);
             }
         }.start();
 
-        stage.setTitle("ESP32 TFT Simulator");
-        stage.setScene(new Scene(new StackPane(canvas)));
+        stage.setTitle("IEC Navigation Simulator");
+        stage.setScene(new Scene(new StackPane(screen)));
         stage.show();
     }
 }
