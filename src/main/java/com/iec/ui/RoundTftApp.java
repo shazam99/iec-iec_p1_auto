@@ -17,7 +17,7 @@ public class RoundTftApp extends Application {
     private static NavigationState navState;
     private static NavigationSnapshot snapshot;
 
-    private static final double SPEED_FACTOR = 0.05; // x real speed
+    private static final double SPEED_FACTOR = 0.005; // x real speed
 
     public static void setNavigation(NavigationState state, NavigationSnapshot snap) {
         navState = state;

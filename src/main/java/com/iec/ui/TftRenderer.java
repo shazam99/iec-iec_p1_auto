@@ -20,7 +20,7 @@ public class TftRenderer {
     private static final double VEHICLE_Y = BUFFER_SIZE * 0.62 + ROAD_CENTER_OFFSET;
 
     private static final double FORWARD_METERS = 100.0;
-    private static final double BACKWARD_METERS = 50.0;
+    private static final double BACKWARD_METERS = 10.0;
     private static final double TOTAL_METERS = FORWARD_METERS + BACKWARD_METERS;
 
     private static final double SIDE_ROAD_LENGTH_M = 20.0;
@@ -50,142 +50,66 @@ public class TftRenderer {
 
     private void drawSideRoads(double vLat, double vLon, double m2p) {
         if (snapshot.sideRoads == null) return;
+
+        ogc.setLineCap(StrokeLineCap.ROUND);
+        ogc.setLineJoin(StrokeLineJoin.ROUND);
+
         for (SideRoadStub sr : snapshot.sideRoads) {
-            double dy = metersNorth(vLat, vLon, sr.lat, sr.lon);
-            if (Math.abs(dy) > FORWARD_METERS) continue;
-            double dx = metersEast(vLat, vLon, sr.lat, sr.lon);
-            double x1 = VEHICLE_X + dx * m2p;
-            double y1 = VEHICLE_Y - dy * m2p;
-            double rad = Math.toRadians(sr.bearingDeg);
-            double x2 = x1 + Math.sin(rad) * SIDE_ROAD_LENGTH_M * m2p;
-            double y2 = y1 - Math.cos(rad) * SIDE_ROAD_LENGTH_M * m2p;
+
+            // Junction point (start)
+            double dy0 = metersNorth(vLat, vLon, sr.lat0, sr.lon0);
+            if (dy0 < -BACKWARD_METERS || dy0 > FORWARD_METERS) continue;
+
+            double dx0 = metersEast(vLat, vLon, sr.lat0, sr.lon0);
+
+            double x0 = VEHICLE_X + dx0 * m2p;
+            double y0 = VEHICLE_Y - dy0 * m2p;
+
+            // Direction vector (real side road direction)
+            double dy1 = metersNorth(vLat, vLon, sr.lat1, sr.lon1);
+            double dx1 = metersEast(vLat, vLon, sr.lat1, sr.lon1);
+
+            double vx = dx1 - dx0;
+            double vy = dy1 - dy0;
+
+            double len = Math.hypot(vx, vy);
+            if (len < 0.1) continue;
+
+            // Normalize
+            vx /= len;
+            vy /= len;
+
+            // Clamp to fixed visual length
+            double endDx = dx0 + vx * SIDE_ROAD_LENGTH_M;
+            double endDy = dy0 + vy * SIDE_ROAD_LENGTH_M;
+
+            double x1 = VEHICLE_X + endDx * m2p;
+            double y1 = VEHICLE_Y - endDy * m2p;
+
+            // Soft fade like screenshot
             ogc.setStroke(new LinearGradient(
-                    x1, y1, x2, y2,
+                    x0, y0, x1, y1,
                     false,
                     CycleMethod.NO_CYCLE,
-                    new Stop(0, Color.rgb(200, 200, 200,  0.5)),
-                    new Stop(1, Color.rgb(0, 0, 0,  0))
+                    new Stop(0.0, Color.rgb(220, 220, 220, 0.5)),
+                    new Stop(1.0, Color.rgb(220, 220, 220, 0))
             ));
-            ogc.setLineWidth(ROAD_WIDTH);
-            ogc.strokeLine(x1, y1, x2, y2);
+
+            ogc.setLineWidth(ROAD_WIDTH * 1.0);
+
+            ogc.strokeLine(x0, y0, x1, y1);
             ogc.setStroke(new LinearGradient(
-                    x1, y1, x2, y2,
+                    x0, y0, x1, y1,
                     false,
                     CycleMethod.NO_CYCLE,
-                    new Stop(0, Color.rgb(0, 0, 0,  1)),
-                    new Stop(1, Color.rgb(0, 0, 0,  1))
+                    new Stop(0.0, Color.rgb(0, 0, 0, 1)),
+                    new Stop(1.0, Color.rgb(0, 0, 0, 1))
             ));
-            ogc.setLineWidth(6);
-            ogc.strokeLine(x1, y1, x2, y2);
+
+            ogc.setLineWidth(ROAD_WIDTH * 0.3);
+            ogc.strokeLine(x0, y0, x1, y1);
         }
     }
-
-    private void drawMainRoute(double vLat, double vLon, double m2p) {
-
-        ogc.setStroke(Color.rgb(255,255,255));
-        ogc.setLineWidth(ROAD_WIDTH);
-
-        var pts = snapshot.pathPoints;
-
-        for (int i = 0; i < pts.size() - 1; i++) {
-
-            double dy1 = metersNorth(vLat, vLon, pts.getLat(i), pts.getLon(i));
-            double dy2 = metersNorth(vLat, vLon, pts.getLat(i + 1), pts.getLon(i + 1));
-
-            if (dy1 > FORWARD_METERS && dy2 > FORWARD_METERS) continue;
-            if (dy1 < -BACKWARD_METERS && dy2 < -BACKWARD_METERS) continue;
-
-            double dx1 = metersEast(vLat, vLon, pts.getLat(i), pts.getLon(i));
-            double dx2 = metersEast(vLat, vLon, pts.getLat(i + 1), pts.getLon(i + 1));
-
-            ogc.strokeLine(
-                    VEHICLE_X + dx1 * m2p,
-                    VEHICLE_Y - dy1 * m2p,
-                    VEHICLE_X + dx2 * m2p,
-                    VEHICLE_Y - dy2 * m2p
-            );
-        }
-    }
-
-//    private void drawCurvyRoute(double vLat, double vLon, double m2p) {
-//
-//        var pts = snapshot.pathPoints;
-//
-//        ogc.setStroke(Color.WHITE);
-//        ogc.setLineWidth(ROAD_WIDTH);
-//        ogc.setLineCap(StrokeLineCap.ROUND);
-//        ogc.setLineJoin(StrokeLineJoin.ROUND);
-//
-//        // Radius of the turn curve (in meters)
-//        final double TURN_RADIUS_M = 8.0;
-//        final double TURN_RADIUS_PX = TURN_RADIUS_M * m2p;
-//
-//        for (int i = 1; i < pts.size() - 1; i++) {
-//
-//            // Previous, current, next points in meters
-//            double ax = metersEast(vLat, vLon, pts.getLat(i - 1), pts.getLon(i - 1)) * m2p;
-//            double ay = -metersNorth(vLat, vLon, pts.getLat(i - 1), pts.getLon(i - 1)) * m2p;
-//
-//            double bx = metersEast(vLat, vLon, pts.getLat(i), pts.getLon(i)) * m2p;
-//            double by = -metersNorth(vLat, vLon, pts.getLat(i), pts.getLon(i)) * m2p;
-//
-//            double cx = metersEast(vLat, vLon, pts.getLat(i + 1), pts.getLon(i + 1)) * m2p;
-//            double cy = -metersNorth(vLat, vLon, pts.getLat(i + 1), pts.getLon(i + 1)) * m2p;
-//
-//            ax += VEHICLE_X;
-//            ay += VEHICLE_Y;
-//            bx += VEHICLE_X;
-//            by += VEHICLE_Y;
-//            cx += VEHICLE_X;
-//            cy += VEHICLE_Y;
-//
-//            // Direction vectors
-//            double v1x = bx - ax;
-//            double v1y = by - ay;
-//            double v2x = cx - bx;
-//            double v2y = cy - by;
-//
-//            double len1 = Math.hypot(v1x, v1y);
-//            double len2 = Math.hypot(v2x, v2y);
-//
-//            if (len1 < 1 || len2 < 1) continue;
-//
-//            // Normalize
-//            v1x /= len1;
-//            v1y /= len1;
-//            v2x /= len2;
-//            v2y /= len2;
-//
-//            // Angle between segments
-//            double dot = v1x * v2x + v1y * v2y;
-//            double angleDeg = Math.toDegrees(Math.acos(Math.max(-1, Math.min(1, dot))));
-//
-//            // If almost straight, draw normally
-//            if (angleDeg < 20) {
-//                ogc.strokeLine(ax, ay, bx, by);
-//                continue;
-//            }
-//
-//            // Points before and after the corner
-//            double p1x = bx - v1x * TURN_RADIUS_PX;
-//            double p1y = by - v1y * TURN_RADIUS_PX;
-//
-//            double p2x = bx + v2x * TURN_RADIUS_PX;
-//            double p2y = by + v2y * TURN_RADIUS_PX;
-//
-//            // Draw incoming straight
-//            ogc.strokeLine(ax, ay, p1x, p1y);
-//
-//            // Draw rounded corner (quadratic curve)
-//            ogc.beginPath();
-//            ogc.moveTo(p1x, p1y);
-//            ogc.quadraticCurveTo(bx, by, p2x, p2y);
-//            ogc.stroke();
-//
-//            // Draw outgoing straight
-//            ogc.strokeLine(p2x, p2y, cx, cy);
-//        }
-//    }
 
     private void drawCurvyRoute(double vLat, double vLon, double m2p) {
         var pts = snapshot.pathPoints;
@@ -257,7 +181,6 @@ public class TftRenderer {
         ogc.stroke();
     }
 
-
     public void drawToScreen(GraphicsContext gc) {
         int view = (BUFFER_SIZE - SCREEN_SIZE) / 2;
         gc.drawImage(offscreen.snapshot(null, null),
@@ -276,7 +199,6 @@ public class TftRenderer {
             20, 50
     );
 }
-
 
     public double getVehicleScreenX() {
         return SCREEN_SIZE / 2.0;

@@ -7,6 +7,8 @@ import com.graphhopper.storage.BaseGraph;
 import com.graphhopper.storage.index.LocationIndex;
 import com.graphhopper.storage.index.Snap;
 import com.graphhopper.util.EdgeIterator;
+import com.graphhopper.util.EdgeIteratorState;
+import com.graphhopper.util.FetchMode;
 import com.graphhopper.util.PointList;
 import com.iec.model.NavigationSnapshot;
 import com.iec.model.SideRoadStub;
@@ -69,7 +71,8 @@ public class NavigationEngine {
     }
 
     /**
-     * Extract real side roads using graph snapping.
+     * Extract side roads using real graph geometry,
+     * excluding the main route direction.
      */
     private List<SideRoadStub> extractSideRoads(PointList routePoints) {
 
@@ -81,38 +84,51 @@ public class NavigationEngine {
             double lat = routePoints.getLat(i);
             double lon = routePoints.getLon(i);
 
-            Snap qr = locationIndex.findClosest(lat, lon, edge -> true);
-            if (!qr.isValid()) continue;
+            Snap snap = locationIndex.findClosest(lat, lon, edge -> true);
+            if (!snap.isValid()) continue;
 
-            int nodeId = qr.getClosestNode();
+            int nodeId = snap.getClosestNode();
+
+            // Previous and next route points
+            double prevLat = routePoints.getLat(i - 1);
+            double prevLon = routePoints.getLon(i - 1);
+            double nextLat = routePoints.getLat(i + 1);
+            double nextLon = routePoints.getLon(i + 1);
 
             EdgeIterator iter = graph.createEdgeExplorer().setBaseNode(nodeId);
             while (iter.next()) {
 
                 int adj = iter.getAdjNode();
-
                 double adjLat = graph.getNodeAccess().getLat(adj);
                 double adjLon = graph.getNodeAccess().getLon(adj);
 
-                double bearing = bearingDeg(lat, lon, adjLat, adjLon);
+                // Skip main route edges
+                if (isSameLocation(adjLat, adjLon, prevLat, prevLon) ||
+                        isSameLocation(adjLat, adjLon, nextLat, nextLon)) {
+                    continue;
+                }
 
-                result.add(new SideRoadStub(lat, lon, bearing));
+                EdgeIteratorState edge = iter.detach(false);
+                PointList geom = edge.fetchWayGeometry(FetchMode.ALL);
+                if (geom.size() < 2) continue;
+
+                double lat0 = geom.getLat(0);
+                double lon0 = geom.getLon(0);
+                double lat1 = geom.getLat(1);
+                double lon1 = geom.getLon(1);
+
+                result.add(new SideRoadStub(lat0, lon0, lat1, lon1));
             }
         }
 
         return result;
     }
 
-    private static double bearingDeg(
+    private static boolean isSameLocation(
             double lat1, double lon1,
             double lat2, double lon2
     ) {
-        double dLon = Math.toRadians(lon2 - lon1);
-        double y = Math.sin(dLon) * Math.cos(Math.toRadians(lat2));
-        double x =
-                Math.cos(Math.toRadians(lat1)) * Math.sin(Math.toRadians(lat2)) -
-                        Math.sin(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.cos(dLon);
-
-        return (Math.toDegrees(Math.atan2(y, x)) + 360) % 360;
+        return Math.abs(lat1 - lat2) < 1e-5 &&
+                Math.abs(lon1 - lon2) < 1e-5;
     }
 }

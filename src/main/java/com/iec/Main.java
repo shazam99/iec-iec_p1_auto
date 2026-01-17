@@ -14,11 +14,11 @@ public class Main {
                 new NavigationEngine("maps/india-260111.osm.pbf");
 
         NavigationSnapshot snapshot = engine.buildRoute(
-                28.373902,77.37149,   // Faridabad
-                28.61291, 77.22951    // India Gate
-//                28.100542,77.336318 // palwal
-//                28.387845,77.353638 // omaxe
-//                28.415355,77.3675 // dentist
+                28.410115,77.362332,
+                28.387889,77.365063
+
+//                28.387812,77.366332,
+//                28.384858,77.362705
         );
 
         System.out.println("✅ Graph loaded");
