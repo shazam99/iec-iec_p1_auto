@@ -52,8 +52,8 @@ public interface VehicleMarker {
             gc.rotate(Math.toDegrees(headingRad));
 
             // Custom dimensions: wide base, short tip
-            double halfWidth = size/1.5 ; // Increase this for "wider" sides
-            double halfHeight = size; // Decrease this for "smaller" height
+            double halfWidth = size/1 ; // Increase this for "wider" sides
+            double halfHeight = size*0.8; // Decrease this for "smaller" height
 
             double[] xPoints = {0, -halfWidth, halfWidth};
             double[] yPoints = {-halfHeight, halfHeight, halfHeight};
@@ -64,7 +64,7 @@ public interface VehicleMarker {
 
             // White Border
             gc.setStroke(Color.BLACK);
-            gc.setLineWidth(3.0);
+            gc.setLineWidth(5.0);
             gc.strokePolygon(xPoints, yPoints, 3);
 
             gc.restore();

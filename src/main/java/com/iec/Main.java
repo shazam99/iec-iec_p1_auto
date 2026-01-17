@@ -14,11 +14,18 @@ public class Main {
                 new NavigationEngine("maps/india-260111.osm.pbf");
 
         NavigationSnapshot snapshot = engine.buildRoute(
-                28.410115,77.362332,
-                28.387889,77.365063
+//                28.410115,77.362332,
+//                28.387889,77.365063 // dentist u turn
 
-//                28.387812,77.366332,
-//                28.384858,77.362705
+//                28.387815,77.364403,
+//                28.384858,77.362705 // chandila chowk
+
+//                28.462666,77.507872, // pari chowk
+//                28.462880, 77.510202
+
+                29.025818602887757, 77.07152169492728,
+                29.028351524559234, 77.07358163136662
+
         );
 
         System.out.println("✅ Graph loaded");

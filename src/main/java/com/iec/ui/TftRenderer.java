@@ -51,66 +51,67 @@ public class TftRenderer {
     private void drawSideRoads(double vLat, double vLon, double m2p) {
         if (snapshot.sideRoads == null) return;
 
-        ogc.setLineCap(StrokeLineCap.ROUND);
+        ogc.setLineCap(StrokeLineCap.BUTT);
         ogc.setLineJoin(StrokeLineJoin.ROUND);
 
+        double startShiftM = (ROAD_WIDTH * 0.25) / m2p;
+
+        // --- LOOP 1: DRAW ALL CASINGS (Bottom Layer) ---
         for (SideRoadStub sr : snapshot.sideRoads) {
+            double[] coords = calculateSideRoadCoords(vLat, vLon, m2p, sr, startShiftM);
+            if (coords == null) continue;
 
-            // Junction point (start)
-            double dy0 = metersNorth(vLat, vLon, sr.lat0, sr.lon0);
-            if (dy0 < -BACKWARD_METERS || dy0 > FORWARD_METERS) continue;
-
-            double dx0 = metersEast(vLat, vLon, sr.lat0, sr.lon0);
-
-            double x0 = VEHICLE_X + dx0 * m2p;
-            double y0 = VEHICLE_Y - dy0 * m2p;
-
-            // Direction vector (real side road direction)
-            double dy1 = metersNorth(vLat, vLon, sr.lat1, sr.lon1);
-            double dx1 = metersEast(vLat, vLon, sr.lat1, sr.lon1);
-
-            double vx = dx1 - dx0;
-            double vy = dy1 - dy0;
-
-            double len = Math.hypot(vx, vy);
-            if (len < 0.1) continue;
-
-            // Normalize
-            vx /= len;
-            vy /= len;
-
-            // Clamp to fixed visual length
-            double endDx = dx0 + vx * SIDE_ROAD_LENGTH_M;
-            double endDy = dy0 + vy * SIDE_ROAD_LENGTH_M;
-
-            double x1 = VEHICLE_X + endDx * m2p;
-            double y1 = VEHICLE_Y - endDy * m2p;
-
-            // Soft fade like screenshot
             ogc.setStroke(new LinearGradient(
-                    x0, y0, x1, y1,
-                    false,
-                    CycleMethod.NO_CYCLE,
-                    new Stop(0.0, Color.rgb(220, 220, 220, 0.5)),
-                    new Stop(1.0, Color.rgb(220, 220, 220, 0))
+                    coords[0], coords[1], coords[2], coords[3],
+                    false, CycleMethod.NO_CYCLE,
+                    new Stop(0.0, Color.rgb(180, 180, 180, 0.7)),
+                    new Stop(0.4, Color.rgb(180, 180, 180, 0.7)),
+                    new Stop(1.0, Color.rgb(180, 180, 180, 0.0))
             ));
+            ogc.setLineWidth(ROAD_WIDTH);
+            ogc.strokeLine(coords[0], coords[1], coords[2], coords[3]);
+        }
 
-            ogc.setLineWidth(ROAD_WIDTH * 1.0);
+        // --- LOOP 2: DRAW ALL CORES (Top Layer) ---
+        for (SideRoadStub sr : snapshot.sideRoads) {
+            double[] coords = calculateSideRoadCoords(vLat, vLon, m2p, sr, startShiftM);
+            if (coords == null) continue;
 
-            ogc.strokeLine(x0, y0, x1, y1);
+            // Note: Using a gradient for the core too, so it fades at the same length
             ogc.setStroke(new LinearGradient(
-                    x0, y0, x1, y1,
-                    false,
-                    CycleMethod.NO_CYCLE,
-                    new Stop(0.0, Color.rgb(0, 0, 0, 1)),
-                    new Stop(1.0, Color.rgb(0, 0, 0, 1))
+                    coords[0], coords[1], coords[2], coords[3],
+                    false, CycleMethod.NO_CYCLE,
+                    new Stop(0.0, Color.BLACK),
+                    new Stop(0.4, Color.BLACK),
+                    new Stop(1.0, Color.TRANSPARENT)
             ));
-
-            ogc.setLineWidth(ROAD_WIDTH * 0.3);
-            ogc.strokeLine(x0, y0, x1, y1);
+            ogc.setLineWidth(ROAD_WIDTH * 0.4);
+            ogc.strokeLine(coords[0], coords[1], coords[2], coords[3]);
         }
     }
 
+    // Helper method to avoid code duplication and improve performance
+    private double[] calculateSideRoadCoords(double vLat, double vLon, double m2p, SideRoadStub sr, double startShiftM) {
+        double dx0 = metersEast(vLat, vLon, sr.lat0, sr.lon0);
+        double dy0 = metersNorth(vLat, vLon, sr.lat0, sr.lon0);
+        double dx1 = metersEast(vLat, vLon, sr.lat1, sr.lon1);
+        double dy1 = metersNorth(vLat, vLon, sr.lat1, sr.lon1);
+
+        double vx = dx1 - dx0;
+        double vy = dy1 - dy0;
+        double len = Math.hypot(vx, vy);
+        if (len < 0.1) return null;
+
+        vx /= len;
+        vy /= len;
+
+        return new double[]{
+                VEHICLE_X + (dx0 - vx * startShiftM) * m2p, // xStart
+                VEHICLE_Y - (dy0 - vy * startShiftM) * m2p, // yStart
+                VEHICLE_X + (dx0 + vx * SIDE_ROAD_LENGTH_M) * m2p, // xEnd
+                VEHICLE_Y - (dy0 + vy * SIDE_ROAD_LENGTH_M) * m2p  // yEnd
+        };
+    }
     private void drawCurvyRoute(double vLat, double vLon, double m2p) {
         var pts = snapshot.pathPoints;
         if (pts.size() < 2) return;
